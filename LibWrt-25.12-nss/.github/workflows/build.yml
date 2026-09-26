@@ -1,0 +1,109 @@
+name: Build LibWrt with UA3F
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - ipq807x
+          - ipq60xx
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache
+          sudo rm -rf /swapfile
+          df -h
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential clang flex bison g++ gawk gcc gettext git libncurses5-dev libssl-dev \
+            python3 python3-dev rsync unzip zlib1g-dev file wget patch
+
+      - name: Setup feeds
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Configure build for ${{ matrix.target }}
+        run: |
+          case "${{ matrix.target }}" in
+            ipq807x)
+              echo "CONFIG_TARGET_qualcommax=y" > .config
+              echo "CONFIG_TARGET_qualcommax_Generic=y" >> .config
+              ;;
+            ipq60xx)
+              echo "CONFIG_TARGET_qualcommax=y" > .config
+              echo "CONFIG_TARGET_qualcommax_Generic=y" >> .config
+              ;;
+          esac
+
+          # 添加 UA3F
+          cat >> .config << 'EOF'
+CONFIG_PACKAGE_ua3f=m
+CONFIG_PACKAGE_luci-app-ua3f=m
+CONFIG_PACKAGE_luci-compat=y
+CONFIG_PACKAGE_ipset=y
+CONFIG_PACKAGE_iptables=y
+EOF
+
+          make defconfig
+
+      - name: Download packages
+        run: |
+          make download -j4 V=s 2>&1 | tail -20
+        timeout-minutes: 60
+
+      - name: Build
+        run: |
+          make -j2 V=s 2>&1 | tail -100
+        timeout-minutes: 240
+
+      - name: Organize files
+        if: success()
+        run: |
+          mkdir -p release
+          find bin/targets -name "*.bin" -o -name "*.img" | xargs -I {} cp {} release/ 2>/dev/null || true
+          find bin/packages -name "ua3f*.ipk" | xargs -I {} cp {} release/ 2>/dev/null || true
+          ls -lh release/
+
+      - name: Upload artifacts
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: libwrt-${{ matrix.target }}
+          path: release/
+          retention-days: 7
+
+      - name: Create Release
+        if: success() && github.ref == 'refs/heads/main'
+        uses: ncipollo/release-action@v1
+        with:
+          tag: libwrt-${{ github.run_number }}-${{ matrix.target }}
+          name: "LibWrt Build ${{ github.run_number }} - ${{ matrix.target }}"
+          artifacts: "release/*"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          allowUpdates: true
