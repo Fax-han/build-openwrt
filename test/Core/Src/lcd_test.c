@@ -2,8 +2,6 @@
 #include "gc9a01_driver.h"
 #include "stdio.h"
 
-extern GPIO_TypeDef *GPIOB;
-
 void LCD_DiagnosticTest(void)
 {
     printf("\r\n========== LCD DIAGNOSTIC TEST START ==========\r\n");
