@@ -3,9 +3,9 @@
 
 #include "main.h"
 
-/* DC Pin Control */
-#define DC_HIGH() HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET)
-#define DC_LOW()  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET)
+/* DC Pin Control - Try reversed polarity if black screen */
+#define DC_HIGH() HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET)
+#define DC_LOW()  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET)
 
 /* GC9A01 Commands */
 #define GC9A01_SWRESET    0x01

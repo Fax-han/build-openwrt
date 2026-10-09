@@ -3,19 +3,22 @@
 
 extern SPI_HandleTypeDef hspi1;
 
-/* 发送命令字节 (DC=0) */
+/* 发送命令字节 (DC=LOW) */
 void gc9a01_spi_write_cmd(uint8_t cmd)
 {
     DC_LOW();
+    HAL_Delay(1);  // DC稳定延迟
     HAL_SPI_Transmit(&hspi1, &cmd, 1, HAL_MAX_DELAY);
-    DC_HIGH();
+    HAL_Delay(1);  // 传输后延迟
 }
 
-/* 发送数据字节 (DC=1) */
+/* 发送数据字节 (DC=HIGH) */
 void gc9a01_spi_write_data(uint8_t data)
 {
     DC_HIGH();
+    HAL_Delay(1);  // DC稳定延迟
     HAL_SPI_Transmit(&hspi1, &data, 1, HAL_MAX_DELAY);
+    HAL_Delay(1);  // 传输后延迟
 }
 
 /* 发送多个数据字节 */
